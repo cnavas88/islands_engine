@@ -1,6 +1,6 @@
 defmodule IslandsEngine.Coordinate do
   @moduledoc """
-  TODO
+  Module for create the coordinates.
   """
   alias __MODULE__
 
