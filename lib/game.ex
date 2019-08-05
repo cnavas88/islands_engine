@@ -52,19 +52,17 @@ defmodule IslandsEngine.Game do
         {:reply, {:error, :invalid_island_type}, state_data}
     end
   end
-
   def handle_call({:add_player, name}, _from, state_data) do
-    with {:ok, rules} <- Rules.check(state_data.rules, :add_player)
-    do
-      state_data
-      |> update_player2_name(name)
-      |> update_rules(rules)
-      |> reply_success(:ok)
-    else
+    case Rules.check(state_data.rules, :add_player) do
+      {:ok, rules} ->
+        state_data
+        |> update_player2_name(name)
+        |> update_rules(rules)
+        |> reply_success(:ok)
+
       :error -> {:reply, :error, state_data}
     end
   end
-
   def handle_call({:set_islands, player}, _from, state_data) do
     board = player_board(state_data, player)
     with {:ok, rules} <- Rules.check(state_data.rules, {:set_islands, player}),
@@ -78,7 +76,6 @@ defmodule IslandsEngine.Game do
       false  -> {:reply, {:error, :not_all_islands_positioned}, state_data}
     end
   end
-
   def handle_call({:guess_coordinate, player_key, row, col}, _from, state_data)
   do
     opponent_key = opponent(player_key)
@@ -108,7 +105,6 @@ defmodule IslandsEngine.Game do
   def handle_info(:timeout, state_data) do
     {:stop, {:shutdown, :timeout}, state_data}
   end
-
   def handle_info({:set_state, name}, _state_data) do
     state_data =
       case :ets.lookup(:game_state, name) do
