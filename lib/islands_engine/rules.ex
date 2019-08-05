@@ -8,7 +8,7 @@ defmodule IslandsEngine.Rules do
             player1: :islands_not_set,
             player2: :islands_not_set
 
-  def new(), do: %Rules{}
+  def new, do: %Rules{}
 
   def check(%Rules{state: :player1_turn} = rules, {:guess_coordinate, :player1}), do:
     {:ok, %Rules{rules | state: :player2_turn}}
