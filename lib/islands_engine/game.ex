@@ -2,11 +2,13 @@ defmodule IslandsEngine.Game do
   @moduledoc """
   Genserver for the islands engine game
   """
-  use GenServer
+  use GenServer, start: {__MODULE__, :start_link, []}, restart: :transient
 
   alias IslandsEngine.{Board, Coordinate, Guesses, Island, Rules}
 
   @players [:player1, :player2]
+
+  @timeout 60 * 60 * 24 * 1000
 
   def start_link(name) when is_binary(name), do:
     GenServer.start_link(__MODULE__, name, name: via_tuple(name))
@@ -28,7 +30,7 @@ defmodule IslandsEngine.Game do
   def init(name) do
     player1 = %{name: name, board: Board.new(), guesses: Guesses.new()}
     player2 = %{name: nil, board: Board.new(), guesses: Guesses.new()}
-    {:ok, %{player1: player1, player2: player2, rules: %Rules{}}}
+    {:ok, %{player1: player1, player2: player2, rules: %Rules{}}, @timeout}
   end
 
   def handle_call({:position_island, player, key, row, col}, _from, state_data)
@@ -104,9 +106,8 @@ defmodule IslandsEngine.Game do
     end
   end
 
-  def handle_info(:first, state) do
-    IO.puts "This message has been handled by handle_info/2, matching on :first"
-    {:noreply, state}
+  def handle_info(:timeout, state_data) do
+    {:stop, {:shutdown, :timeout}, state_data}
   end
 
   defp update_player2_name(state_data, name), do:
@@ -114,7 +115,9 @@ defmodule IslandsEngine.Game do
 
   defp update_rules(state_data, rules), do: %{state_data | rules: rules}
 
-  defp reply_success(state_data, reply), do: {:reply, reply, state_data}
+  defp reply_success(state_data, reply) do
+    {:reply, reply, state_data, @timeout}
+  end
 
   defp player_board(state_data, player), do: Map.get(state_data, player).board
 
