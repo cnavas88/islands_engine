@@ -1,6 +1,7 @@
 defmodule IslandsEngine.Rules do
   @moduledoc """
-  Module Rules for islands engine
+  This module is a state machine. Defines when and which moves are
+  valid for players.
   """
   alias __MODULE__
 
@@ -8,7 +9,11 @@ defmodule IslandsEngine.Rules do
             player1: :islands_not_set,
             player2: :islands_not_set
 
+  @spec new :: %Rules{}
+
   def new, do: %Rules{}
+
+  @spec check(%Rules{}, any) :: {:ok, %Rules{}} | :error
 
   def check(%Rules{state: :player1_turn} = rules,
             {:guess_coordinate, :player1}) do
@@ -47,6 +52,8 @@ defmodule IslandsEngine.Rules do
     {:ok, %Rules{rules | state: :players_set}}
   end
   def check(_state, _action), do: :error
+
+  @spec both_players_islands_set?(%Rules{}) :: boolean
 
   defp both_players_islands_set?(rules), do:
     rules.player1 == :islands_set && rules.player2 == :islands_set
