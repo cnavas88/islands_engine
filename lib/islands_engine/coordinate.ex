@@ -1,6 +1,6 @@
 defmodule IslandsEngine.Coordinate do
   @moduledoc """
-  Module for create the coordinates.
+  Define a coordinate in a range of valid coordinates
   """
   alias __MODULE__
 
@@ -8,6 +8,8 @@ defmodule IslandsEngine.Coordinate do
 
   @enforce_keys [:row, :col]
   defstruct [:row, :col]
+
+  @spec new(integer, integer) :: {:ok, %Coordinate{}} | {:error, :invalid_coordinate}
 
   def new(row, col) when row in (@board_range) and col in (@board_range) do
     {:ok, %Coordinate{row: row, col: col}}
