@@ -10,27 +10,47 @@ defmodule IslandsEngine.Game do
 
   @timeout 60 * 60 * 24 * 1000
 
+  # PUBLIC API
+
+  @spec start_link(String.t) :: GenServer.on_start
+
   def start_link(name) when is_binary(name), do:
     GenServer.start_link(__MODULE__, name, name: via_tuple(name))
+
+  @spec position_island(pid, atom, atom, integer, integer) :: any
 
   def position_island(game, player, key, row, col) when player in @players, do:
     GenServer.call(game, {:position_island, player, key, row, col})
 
+  @spec add_player(pid, String.t) :: :ok
+
   def add_player(game, name) when is_binary(name), do:
     GenServer.call(game, {:add_player, name})
+
+  @spec set_islands(pid, atom) :: map
 
   def set_islands(game, player) when player in @players, do:
     GenServer.call(game, {:set_islands, player})
 
+  @spec guess_coordinate(pid, atom, integer, integer) :: map
+
   def guess_coordinate(game, player, row, col) when player in @players, do:
     GenServer.call(game, {:guess_coordinate, player, row, col})
 
+  @spec via_tuple(String.t) :: tuple
+
   def via_tuple(name), do: {:via, Registry, {Registry.Game, name}}
+
+  # CALLBACKS
+
+  @impl GenServer
 
   def init(name) do
     send(self(), {:set_state, name})
     {:ok, fresh_state(name)}
   end
+
+  @impl GenServer
 
   def handle_call({:position_island, player, key, row, col}, _from, state_data)
   do
@@ -52,6 +72,9 @@ defmodule IslandsEngine.Game do
         {:reply, {:error, :invalid_island_type}, state_data}
     end
   end
+
+  @impl GenServer
+
   def handle_call({:add_player, name}, _from, state_data) do
     case Rules.check(state_data.rules, :add_player) do
       {:ok, rules} ->
@@ -63,6 +86,9 @@ defmodule IslandsEngine.Game do
       :error -> {:reply, :error, state_data}
     end
   end
+
+  @impl GenServer
+
   def handle_call({:set_islands, player}, _from, state_data) do
     board = player_board(state_data, player)
     with {:ok, rules} <- Rules.check(state_data.rules, {:set_islands, player}),
@@ -76,6 +102,9 @@ defmodule IslandsEngine.Game do
       false  -> {:reply, {:error, :not_all_islands_positioned}, state_data}
     end
   end
+
+  @impl GenServer
+
   def handle_call({:guess_coordinate, player_key, row, col}, _from, state_data)
   do
     opponent_key = opponent(player_key)
@@ -102,9 +131,14 @@ defmodule IslandsEngine.Game do
     end
   end
 
+  @impl GenServer
+
   def handle_info(:timeout, state_data) do
     {:stop, {:shutdown, :timeout}, state_data}
   end
+
+  @impl GenServer
+
   def handle_info({:set_state, name}, _state_data) do
     state_data =
       case :ets.lookup(:game_state, name) do
@@ -116,35 +150,55 @@ defmodule IslandsEngine.Game do
     {:noreply, state_data, @timeout}
   end
 
+  @impl GenServer
+
   def terminate({:shutdown, :timeout}, state_data) do
     :ets.delete(:game_state, state_data.player1.name)
     :ok
   end
   def terminate(_reason, _state), do: :ok
 
+  # AUXILIARY FUNCTIONS
+
+  @spec update_player2_name(map, String.t) :: map
+
   defp update_player2_name(state_data, name), do:
     put_in(state_data.player2.name, name)
 
+  @spec update_rules(map, %Rules{}) :: map
+
   defp update_rules(state_data, rules), do: %{state_data | rules: rules}
+
+  @spec reply_success(map, any) :: {:reply, any, map, integer}
 
   defp reply_success(state_data, reply) do
     :ets.insert(:game_state, {state_data.player1.name, state_data})
     {:reply, reply, state_data, @timeout}
   end
 
+  @spec player_board(map, atom) :: map
+
   defp player_board(state_data, player), do: Map.get(state_data, player).board
+
+  @spec update_board(map, atom, map) :: map
 
   defp update_board(state_data, player, board), do:
     Map.update!(state_data, player, fn player -> %{player | board: board} end)
 
+  @spec opponent(atom) :: atom
+
   defp opponent(:player1), do: :player2
   defp opponent(:player2), do: :player1
+
+  @spec update_guesses(map, atom, :hit | :miss, %Coordinate{}) :: map
 
   defp update_guesses(state_data, player_key, hit_or_miss, coordinate) do
     update_in(state_data[player_key].guesses, fn guesses ->
       Guesses.add(guesses, hit_or_miss, coordinate)
     end)
   end
+
+  @spec fresh_state(String.t) :: map
 
   defp fresh_state(name) do
     player1 = %{name: name, board: Board.new(), guesses: Guesses.new()}
